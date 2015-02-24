@@ -5,7 +5,7 @@ use warnings;
 use Exporter qw(import);
 use Data::Dumper;
 
-our @EXPORT_OK = qw(get_hdp_installed_version debug);
+our @EXPORT_OK = qw(get_hdp_installed_version stop debug);
 my $debug = 2;
 
 # Input: an array-ref of hostnames
@@ -27,6 +27,42 @@ sub get_hdp_installed_version($) {
 
 	my @versions = keys %version2count;
 	return pop @versions;
+}
+
+my %components_map = {
+	'zookeeper' => 1,
+	'hadoop' => 2,
+	'yarn' => 3,
+	'hbase' => 4,
+	'hive' => 4
+};
+
+my @ordered_components = sort { $components_map{$a} <=> $components_map{$b} } keys %components_map;
+
+# Input: an array-ref of components to stop
+# Output: Subset of inputs that were successfully stopped
+sub stop($) {
+	my ($components) = @_;
+	# We must know about all of the components
+	validate_components($components);
+	my %components = map { $_ => 1 } @$components;
+	my @to_process = grep { defined($components{$_} } @ordered_components;
+	map { stop($) } @to_process;
+}
+
+sub stop($) {
+	my ($component) = @_;
+	if ($component eq 'zookeeper') {
+		stop_zookeeper($host);
+}
+
+# Input: array-ref: list of components validated against %component_map
+# Output: throws an exception if any of the components is unknown
+sub validate_components($) {
+	my ($components) = @_;
+
+	my @unknown_components = grep { !defined($components_map{$_}) } @$components;
+	die "Unknown components [@unknown_components]!" if scalar(@unknown_components);
 }
 
 # Input: An array-ref of hostnames
